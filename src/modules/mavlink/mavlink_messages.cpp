@@ -70,6 +70,7 @@
 #include <uORB/topics/differential_pressure.h>
 #include <uORB/topics/distance_sensor.h>
 #include <uORB/topics/estimator_status.h>
+#include <uORB/topics/ekf2_innovations.h>
 #include <uORB/topics/geofence_result.h>
 #include <uORB/topics/home_position.h>
 #include <uORB/topics/input_rc.h>
@@ -2642,7 +2643,7 @@ public:
 
 	static uint16_t get_id_static()
 	{
-		return MAVLINK_MSG_ID_VIBRATION;
+		return MAVLINK_MSG_ID_ESTIMATOR_STATUS;
 	}
 
 	uint16_t get_id() override
@@ -2657,7 +2658,7 @@ public:
 
 	unsigned get_size() override
 	{
-		return MAVLINK_MSG_ID_VIBRATION_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+		return MAVLINK_MSG_ID_ESTIMATOR_STATUS + MAVLINK_NUM_NON_PAYLOAD_BYTES;
 	}
 
 private:
@@ -2682,6 +2683,21 @@ protected:
 			// ESTIMATOR_STATUS
 			mavlink_estimator_status_t est_msg = {};
 			est_msg.time_usec = est.timestamp;
+
+			// copy states
+			for (size_t i = 0; i < est.n_states; i++) {
+				est_msg.states[i] = est.states[i];
+			}
+
+			// copy state covariances
+			for (size_t i = 0; i < est.n_states; i++) {
+				est_msg.covariances[i] = est.covariances[i];
+			}
+
+			est_msg.n_states = est.n_states;
+			est_msg.vibe[0] = est.vibe[0];
+			est_msg.vibe[1] = est.vibe[1];
+			est_msg.vibe[2] = est.vibe[2];
 			est_msg.vel_ratio = est.vel_test_ratio;
 			est_msg.pos_horiz_ratio = est.pos_test_ratio;
 			est_msg.pos_vert_ratio = est.hgt_test_ratio;
@@ -2691,7 +2707,16 @@ protected:
 			est_msg.pos_horiz_accuracy = est.pos_horiz_accuracy;
 			est_msg.pos_vert_accuracy = est.pos_vert_accuracy;
 			est_msg.flags = est.solution_status_flags;
+
+			// ORIENTATION_COVARIANCES
+			mavlink_orientation_covariances_t cov_msg = {};
+			for (size_t i = 0; i < 16; i++){
+				cov_msg.orientation_covariances[i] = est.orientation_covariances[i];
+			}
+
+			// publish both status and covariances
 			mavlink_msg_estimator_status_send_struct(_mavlink->get_channel(), &est_msg);
+			mavlink_msg_orientation_covariances_send_struct(_mavlink->get_channel(), &cov_msg);
 
 			// VIBRATION
 			mavlink_vibration_t msg = {};
@@ -2700,6 +2725,109 @@ protected:
 			msg.vibration_y = est.vibe[1];
 			msg.vibration_z = est.vibe[2];
 			mavlink_msg_vibration_send_struct(_mavlink->get_channel(), &msg);
+
+			return true;
+		}
+
+		return false;
+	}
+};
+
+class MavlinkStreamEstimatorInnovations : public MavlinkStream
+{
+public:
+	const char *get_name() const
+	{
+		return MavlinkStreamEstimatorInnovations::get_name_static();
+	}
+
+	static const char *get_name_static()
+	{
+		return "ESTIMATOR_INNOVATIONS";
+	}
+
+	static uint16_t get_id_static()
+	{
+		return MAVLINK_MSG_ID_ESTIMATOR_INNOVATIONS;
+	}
+
+	uint16_t get_id()
+	{
+		return get_id_static();
+	}
+
+	static MavlinkStream *new_instance(Mavlink *mavlink)
+	{
+		return new MavlinkStreamEstimatorInnovations(mavlink);
+	}
+
+	unsigned get_size()
+	{
+		return MAVLINK_MSG_ID_ESTIMATOR_INNOVATIONS_LEN + MAVLINK_NUM_NON_PAYLOAD_BYTES;
+	}
+
+private:
+	MavlinkOrbSubscription *_s_est_sub;
+	uint64_t _s_est_time;
+
+	/* do not allow top copying this class */
+	MavlinkStreamEstimatorInnovations(MavlinkStreamEstimatorInnovations &) = delete;
+	MavlinkStreamEstimatorInnovations &operator = (const MavlinkStreamEstimatorInnovations &) = delete;
+
+protected:
+	explicit MavlinkStreamEstimatorInnovations(Mavlink *mavlink) : MavlinkStream(mavlink),
+		_s_est_sub(_mavlink->add_orb_subscription(ORB_ID(ekf2_innovations))),
+		_s_est_time(0)
+	{}
+
+	bool send(const hrt_abstime t)
+	{
+		ekf2_innovations_s est;
+
+		if (_s_est_sub->update(&_s_est_time, &est)) {
+			mavlink_estimator_innovations_t msg = {};
+			msg.time_usec = est.timestamp;
+			msg.vel_pos_innov[0] = est.vel_pos_innov[0];
+			msg.vel_pos_innov[1] = est.vel_pos_innov[1];
+			msg.vel_pos_innov[2] = est.vel_pos_innov[2];
+			msg.vel_pos_innov[3] = est.vel_pos_innov[3];
+			msg.vel_pos_innov[4] = est.vel_pos_innov[4];
+			msg.vel_pos_innov[5] = est.vel_pos_innov[5];
+			msg.mag_innov[0] = est.mag_innov[0];
+			msg.mag_innov[1] = est.mag_innov[1];
+			msg.mag_innov[2] = est.mag_innov[2];
+			msg.heading_innov = est.heading_innov;
+			msg.airspeed_innov = est.airspeed_innov;
+			msg.beta_innov = est.beta_innov;
+			msg.flow_innov[0] = est.flow_innov[0];
+			msg.flow_innov[1] = est.flow_innov[1];
+			msg.hagl_innov = est.hagl_innov;
+			msg.vel_pos_innov_var[0] = est.vel_pos_innov_var[0];
+			msg.vel_pos_innov_var[1] = est.vel_pos_innov_var[1];
+			msg.vel_pos_innov_var[2] = est.vel_pos_innov_var[2];
+			msg.vel_pos_innov_var[3] = est.vel_pos_innov_var[3];
+			msg.vel_pos_innov_var[4] = est.vel_pos_innov_var[4];
+			msg.vel_pos_innov_var[5] = est.vel_pos_innov_var[5];
+			msg.mag_innov_var[0] = est.mag_innov_var[0];
+			msg.mag_innov_var[1] = est.mag_innov_var[1];
+			msg.mag_innov_var[2] = est.mag_innov_var[2];
+			msg.heading_innov_var = est.heading_innov_var;
+			msg.airspeed_innov_var = est.airspeed_innov_var;
+			msg.beta_innov_var = est.beta_innov_var;
+			msg.flow_innov_var[0] = est.flow_innov_var[0];
+			msg.flow_innov_var[1] = est.flow_innov_var[1];
+			msg.hagl_innov_var = est.hagl_innov_var;
+			msg.output_tracking_error[0] = est.output_tracking_error[0];
+			msg.output_tracking_error[1] = est.output_tracking_error[1];
+			msg.output_tracking_error[2] = est.output_tracking_error[2];
+			msg.drag_innov[0] = est.drag_innov[0];
+			msg.drag_innov[1] = est.drag_innov[1];
+			msg.drag_innov_var[0] = est.drag_innov_var[0];
+			msg.drag_innov_var[1] = est.drag_innov_var[1];
+			msg.aux_vel_innov[0] = est.aux_vel_innov[0];
+			msg.aux_vel_innov[1] = est.aux_vel_innov[1];
+
+			mavlink_msg_estimator_innovations_send_struct(_mavlink->get_channel(), &msg);
 
 			return true;
 		}
@@ -5093,6 +5221,7 @@ static const StreamListItem streams_list[] = {
 	StreamListItem(&MavlinkStreamLocalPositionNED::new_instance, &MavlinkStreamLocalPositionNED::get_name_static, &MavlinkStreamLocalPositionNED::get_id_static),
 	StreamListItem(&MavlinkStreamOdometry::new_instance, &MavlinkStreamOdometry::get_name_static, &MavlinkStreamOdometry::get_id_static),
 	StreamListItem(&MavlinkStreamEstimatorStatus::new_instance, &MavlinkStreamEstimatorStatus::get_name_static, &MavlinkStreamEstimatorStatus::get_id_static),
+	StreamListItem(&MavlinkStreamEstimatorInnovations::new_instance, &MavlinkStreamEstimatorInnovations::get_name_static, &MavlinkStreamEstimatorInnovations::get_id_static),
 	StreamListItem(&MavlinkStreamAttPosMocap::new_instance, &MavlinkStreamAttPosMocap::get_name_static, &MavlinkStreamAttPosMocap::get_id_static),
 	StreamListItem(&MavlinkStreamHomePosition::new_instance, &MavlinkStreamHomePosition::get_name_static, &MavlinkStreamHomePosition::get_id_static),
 	StreamListItem(&MavlinkStreamServoOutputRaw<0>::new_instance, &MavlinkStreamServoOutputRaw<0>::get_name_static, &MavlinkStreamServoOutputRaw<0>::get_id_static),

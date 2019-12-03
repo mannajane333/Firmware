@@ -1484,6 +1484,7 @@ void Ekf2::Run()
 			_ekf.get_state_delayed(status.states);
 			status.n_states = 24;
 			_ekf.covariances_diagonal().copyTo(status.covariances);
+			_ekf.orientation_covariances().copyTo(status.orientation_covariances);
 			_ekf.get_gps_check_status(&status.gps_check_fail_flags);
 			// only report enabled GPS check failures (the param indexes are shifted by 1 bit, because they don't include
 			// the GPS Fix bit, which is always checked)

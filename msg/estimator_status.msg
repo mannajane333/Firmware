@@ -8,6 +8,7 @@ float32[3] vibe			# IMU vibration metrics in the following array locations
 # 2 : Accel high frequency vibe = filtered length of (delta_velocity - prev_delta_velocity)
 
 float32[24] covariances	# Diagonal Elements of Covariance Matrix
+float32[16] orientation_covariances # 4x4 matrix for orientation covariances
 
 uint16 gps_check_fail_flags     # Bitmask to indicate status of GPS checks - see definition below
 # bits are true when corresponding test has failed

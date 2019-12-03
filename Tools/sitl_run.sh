@@ -1,5 +1,11 @@
 #!/bin/bash
 
+
+# keep gazebo from running after build
+######################################
+DONT_RUN=true
+######################################
+
 set -e
 
 sitl_bin="$1"
