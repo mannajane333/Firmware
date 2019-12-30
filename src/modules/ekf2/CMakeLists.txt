@@ -29,6 +29,10 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
+# Initially: STACK_MAX 2400
+# Terran's:
+# STACK_MAIN 2400
+# STACK_MAX 4000
 #############################################################################
 
 add_subdirectory(Utility)

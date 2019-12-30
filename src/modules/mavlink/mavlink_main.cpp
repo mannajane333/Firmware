@@ -1610,20 +1610,20 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 
 	switch (_mode) {
 	case MAVLINK_MODE_NORMAL:
-		configure_stream_local("ADSB_VEHICLE", unlimited_rate);
+		//configure_stream_local("ADSB_VEHICLE", unlimited_rate);
 		configure_stream_local("ALTITUDE", 1.0f);
 		configure_stream_local("ATTITUDE", 15.0f);
 		configure_stream_local("ATTITUDE_TARGET", 2.0f);
 		configure_stream_local("BATTERY_STATUS", 0.5f);
-		configure_stream_local("CAMERA_IMAGE_CAPTURED", unlimited_rate);
-		configure_stream_local("COLLISION", unlimited_rate);
+		//configure_stream_local("CAMERA_IMAGE_CAPTURED", unlimited_rate);
+		//configure_stream_local("COLLISION", unlimited_rate);
 		configure_stream_local("DEBUG", 1.0f);
 		configure_stream_local("DEBUG_FLOAT_ARRAY", 1.0f);
 		configure_stream_local("DEBUG_VECT", 1.0f);
 		configure_stream_local("DISTANCE_SENSOR", 0.5f);
-		configure_stream_local("ESTIMATOR_STATUS", unlimited_rate);
-		configure_stream_local("ESTIMATOR_INNOVATIONS", unlimited_rate);
-		configure_stream_local("ORIENTATION_COVARIANCES", unlimited_rate);
+		configure_stream_local("ESTIMATOR_STATUS", 20.0f);
+		configure_stream_local("ESTIMATOR_INNOVATIONS", 20.0f);
+		configure_stream_local("ORIENTATION_COVARIANCES", 20.0f);
 		configure_stream_local("EXTENDED_SYS_STATE", 1.0f);
 		configure_stream_local("GLOBAL_POSITION_INT", 5.0f);
 		configure_stream_local("GPS2_RAW", 1.0f);
@@ -1647,27 +1647,27 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 
 	case MAVLINK_MODE_ONBOARD:
 		configure_stream_local("ACTUATOR_CONTROL_TARGET0", 10.0f);
-		configure_stream_local("ADSB_VEHICLE", unlimited_rate);
+		//configure_stream_local("ADSB_VEHICLE", unlimited_rate);
 		configure_stream_local("ALTITUDE", 10.0f);
 		configure_stream_local("ATTITUDE", 100.0f);
 		configure_stream_local("ATTITUDE_QUATERNION", 50.0f);
 		configure_stream_local("ATTITUDE_TARGET", 10.0f);
 		configure_stream_local("BATTERY_STATUS", 0.5f);
 		configure_stream_local("CAMERA_CAPTURE", 2.0f);
-		configure_stream_local("CAMERA_IMAGE_CAPTURED", unlimited_rate);
-		configure_stream_local("CAMERA_TRIGGER", unlimited_rate);
-		configure_stream_local("COLLISION", unlimited_rate);
+		//configure_stream_local("CAMERA_IMAGE_CAPTURED", unlimited_rate);
+		//configure_stream_local("CAMERA_TRIGGER", unlimited_rate);
+		//configure_stream_local("COLLISION", unlimited_rate);
 		configure_stream_local("DEBUG", 10.0f);
 		configure_stream_local("DEBUG_FLOAT_ARRAY", 10.0f);
 		configure_stream_local("DEBUG_VECT", 10.0f);
 		configure_stream_local("DISTANCE_SENSOR", 10.0f);
-		configure_stream_local("ESTIMATOR_STATUS", unlimited_rate);
-		configure_stream_local("ESTIMATOR_INNOVATIONS", unlimited_rate);
-		configure_stream_local("ORIENTATION_COVARIANCES", unlimited_rate);
+		configure_stream_local("ESTIMATOR_STATUS", 20.0f);
+		configure_stream_local("ESTIMATOR_INNOVATIONS", 20.0f);
+		configure_stream_local("ORIENTATION_COVARIANCES", 20.0f);
 		configure_stream_local("EXTENDED_SYS_STATE", 5.0f);
 		configure_stream_local("GLOBAL_POSITION_INT", 50.0f);
-		configure_stream_local("GPS2_RAW", unlimited_rate);
-		configure_stream_local("GPS_RAW_INT", unlimited_rate);
+		//configure_stream_local("GPS2_RAW", unlimited_rate);
+		//configure_stream_local("GPS_RAW_INT", unlimited_rate);
 		configure_stream_local("HIGHRES_IMU", 50.0f);
 		configure_stream_local("HOME_POSITION", 0.5f);
 		configure_stream_local("LOCAL_POSITION_NED", 30.0f);
@@ -1708,9 +1708,9 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		configure_stream_local("DEBUG_FLOAT_ARRAY", 1.0f);
 		configure_stream_local("DEBUG_VECT", 1.0f);
 		configure_stream_local("DISTANCE_SENSOR", 10.0f);
-		configure_stream_local("ESTIMATOR_STATUS", unlimited_rate);
-		configure_stream_local("ESTIMATOR_INNOVATIONS", unlimited_rate);
-		configure_stream_local("ORIENTATION_COVARIANCES", unlimited_rate);
+		configure_stream_local("ESTIMATOR_STATUS", 1.0f);
+		configure_stream_local("ESTIMATOR_INNOVATIONS", 1.0f);
+		configure_stream_local("ORIENTATION_COVARIANCES", 1.0f);
 		configure_stream_local("EXTENDED_SYS_STATE", 1.0f);
 		configure_stream_local("GLOBAL_POSITION_INT", 5.0f);
 		configure_stream_local("GPS2_RAW", 1.0f);
@@ -1739,9 +1739,10 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		configure_stream_local("ALTITUDE", 10.0f);
 		configure_stream_local("ATTITUDE", 25.0f);
 		configure_stream_local("ATTITUDE_TARGET", 10.0f);
-		configure_stream_local("ESTIMATOR_STATUS", unlimited_rate);
-		configure_stream_local("ESTIMATOR_INNOVATIONS", unlimited_rate);
-		configure_stream_local("ORIENTATION_COVARIANCES", unlimited_rate);
+		configure_stream_local("BATTERY_STATUS", 0.5f);
+		configure_stream_local("ESTIMATOR_STATUS", 1.0f);
+		configure_stream_local("ESTIMATOR_INNOVATIONS", 1.0f);
+		configure_stream_local("ORIENTATION_COVARIANCES", 1.0f);
 		configure_stream_local("EXTENDED_SYS_STATE", 1.0f);
 		configure_stream_local("GLOBAL_POSITION_INT", 10.0f);
 		configure_stream_local("GPS_RAW_INT", 1.0f);
@@ -1777,9 +1778,9 @@ Mavlink::configure_streams_to_default(const char *configure_single_stream)
 		configure_stream_local("DEBUG_FLOAT_ARRAY", 50.0f);
 		configure_stream_local("DEBUG_VECT", 50.0f);
 		configure_stream_local("DISTANCE_SENSOR", 10.0f);
-		configure_stream_local("ESTIMATOR_STATUS", unlimited_rate);
-		configure_stream_local("ESTIMATOR_INNOVATIONS", unlimited_rate);
-		configure_stream_local("ORIENTATION_COVARIANCES", unlimited_rate);
+		configure_stream_local("ESTIMATOR_STATUS", 1.0f);
+		configure_stream_local("ESTIMATOR_INNOVATIONS", 1.0f);
+		configure_stream_local("ORIENTATION_COVARIANCES", 1.0f);
 		configure_stream_local("EXTENDED_SYS_STATE", 2.0f);
 		configure_stream_local("GLOBAL_POSITION_INT", 10.0f);
 		configure_stream_local("GPS2_RAW", unlimited_rate);

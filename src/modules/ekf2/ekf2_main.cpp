@@ -38,6 +38,7 @@
  * @author Roman Bapst
  */
 
+#include <cstdlib>
 #include <float.h>
 
 #include <drivers/drv_hrt.h>
@@ -116,6 +117,7 @@ public:
 private:
 	int getRangeSubIndex(); ///< get subscription index of first downward-facing range sensor
 	void fillGpsMsgWithVehicleGpsPosData(gps_message &msg, const vehicle_gps_position_s &data);
+    estimator_status_s getStatus(hrt_abstime now, filter_control_status_u control_status);
 
 	PreFlightChecker _preflt_checker;
 	void runPreFlightChecks(float dt, const filter_control_status_u &control_status,
@@ -1479,37 +1481,17 @@ void Ekf2::Run()
 			}
 
 			// publish estimator status
-			estimator_status_s status;
-			status.timestamp = now;
-			_ekf.get_state_delayed(status.states);
-			status.n_states = 24;
-			_ekf.covariances_diagonal().copyTo(status.covariances);
-			_ekf.orientation_covariances().copyTo(status.orientation_covariances);
-			_ekf.get_gps_check_status(&status.gps_check_fail_flags);
-			// only report enabled GPS check failures (the param indexes are shifted by 1 bit, because they don't include
-			// the GPS Fix bit, which is always checked)
-			status.gps_check_fail_flags &= ((uint16_t)_params->gps_check_mask << 1) | 1;
-			status.control_mode_flags = control_status.value;
-			_ekf.get_filter_fault_status(&status.filter_fault_flags);
-			_ekf.get_innovation_test_status(&status.innovation_check_flags, &status.mag_test_ratio,
-							&status.vel_test_ratio, &status.pos_test_ratio,
-							&status.hgt_test_ratio, &status.tas_test_ratio,
-							&status.hagl_test_ratio, &status.beta_test_ratio);
-
-			status.pos_horiz_accuracy = _vehicle_local_position_pub.get().eph;
-			status.pos_vert_accuracy = _vehicle_local_position_pub.get().epv;
-			_ekf.get_ekf_soln_status(&status.solution_status_flags);
-			_ekf.get_imu_vibe_metrics(status.vibe);
-			status.time_slip = _last_time_slip_us / 1e6f;
-			status.health_flags = 0.0f; // unused
-			status.timeout_flags = 0.0f; // unused
-			status.pre_flt_fail_innov_heading = _preflt_checker.hasHeadingFailed();
-			status.pre_flt_fail_innov_vel_horiz = _preflt_checker.hasHorizVelFailed();
-			status.pre_flt_fail_innov_vel_vert = _preflt_checker.hasVertVelFailed();
-			status.pre_flt_fail_innov_height = _preflt_checker.hasHeightFailed();
-			status.pre_flt_fail_mag_field_disturbed = control_status.flags.mag_field_disturbed;
+            estimator_status_s status = getStatus(now, control_status);
 
 			_estimator_status_pub.publish(status);
+
+            float32 states[24];
+            float32 covariances[24];
+            uint16_t filter_fault_flags;
+
+            _ekf.get_state_delayed(states);
+			_ekf.covariances_diagonal().copyTo(covariances);
+			_ekf.get_filter_fault_status(&filter_fault_flags);
 
 			// publish GPS drift data only when updated to minimise overhead
 			float gps_drift[3];
@@ -1532,7 +1514,7 @@ void Ekf2::Run()
 				// Check if conditions are OK for learning of magnetometer bias values
 				if (!_vehicle_land_detected.landed && // not on ground
 				    (_vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED) && // vehicle is armed
-				    !status.filter_fault_flags && // there are no filter faults
+				    !filter_fault_flags && // there are no filter faults
 				    control_status.flags.mag_3D) { // the EKF is operating in the correct mode
 
 					if (_last_magcal_us == 0) {
@@ -1543,7 +1525,7 @@ void Ekf2::Run()
 						_last_magcal_us = now;
 					}
 
-				} else if (status.filter_fault_flags != 0) {
+				} else if (filter_fault_flags != 0) {
 					// if a filter fault has occurred, assume previous learning was invalid and do not
 					// count it towards total learning time.
 					_total_cal_time_us = 0;
@@ -1564,8 +1546,8 @@ void Ekf2::Run()
 					bool all_estimates_invalid = false;
 
 					for (uint8_t axis_index = 0; axis_index <= 2; axis_index++) {
-						if (status.covariances[axis_index + 19] < min_var_allowed
-						    || status.covariances[axis_index + 19] > max_var_allowed) {
+						if (covariances[axis_index + 19] < min_var_allowed
+						    || covariances[axis_index + 19] > max_var_allowed) {
 							all_estimates_invalid = true;
 						}
 					}
@@ -1573,16 +1555,16 @@ void Ekf2::Run()
 					// Store valid estimates and their associated variances
 					if (!all_estimates_invalid) {
 						for (uint8_t axis_index = 0; axis_index <= 2; axis_index++) {
-							_last_valid_mag_cal[axis_index] = status.states[axis_index + 19];
+							_last_valid_mag_cal[axis_index] = states[axis_index + 19];
 							_valid_cal_available[axis_index] = true;
-							_last_valid_variance[axis_index] = status.covariances[axis_index + 19];
+							_last_valid_variance[axis_index] = covariances[axis_index + 19];
 						}
 					}
 				}
 
 				// Check and save the last valid calibration when we are disarmed
 				if ((_vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_STANDBY)
-				    && (status.filter_fault_flags == 0)
+				    && (filter_fault_flags == 0)
 				    && (_sensor_selection.mag_device_id == (uint32_t)_param_ekf2_magbias_id.get())) {
 
 					update_mag_bias(_param_ekf2_magbias_x, 0);
@@ -1642,6 +1624,41 @@ void Ekf2::Run()
 		// publish ekf2_timestamps
 		_ekf2_timestamps_pub.publish(ekf2_timestamps);
 	}
+}
+
+estimator_status_s Ekf2::getStatus(hrt_abstime now, filter_control_status_u control_status)
+{
+    estimator_status_s status;
+    status.timestamp = now;
+	_ekf.get_state_delayed(status.states);
+	status.n_states = 24;
+	_ekf.covariances_diagonal().copyTo(status.covariances);
+	_ekf.orientation_covariances().copyTo(status.orientation_covariances);
+	_ekf.get_gps_check_status(&status.gps_check_fail_flags);
+	// only report enabled GPS check failures (the param indexes are shifted by 1 bit, because they don't include
+	// the GPS Fix bit, which is always checked)
+	status.gps_check_fail_flags &= ((uint16_t)_params->gps_check_mask << 1) | 1;
+	status.control_mode_flags = control_status.value;
+	_ekf.get_filter_fault_status(&status.filter_fault_flags);
+	_ekf.get_innovation_test_status(&status.innovation_check_flags, &status.mag_test_ratio,
+					&status.vel_test_ratio, &status.pos_test_ratio,
+					&status.hgt_test_ratio, &status.tas_test_ratio,
+					&status.hagl_test_ratio, &status.beta_test_ratio);
+
+	status.pos_horiz_accuracy = _vehicle_local_position_pub.get().eph;
+	status.pos_vert_accuracy = _vehicle_local_position_pub.get().epv;
+	_ekf.get_ekf_soln_status(&status.solution_status_flags);
+	_ekf.get_imu_vibe_metrics(status.vibe);
+	status.time_slip = _last_time_slip_us / 1e6f;
+	status.health_flags = 0.0f; // unused
+	status.timeout_flags = 0.0f; // unused
+	status.pre_flt_fail_innov_heading = _preflt_checker.hasHeadingFailed();
+	status.pre_flt_fail_innov_vel_horiz = _preflt_checker.hasHorizVelFailed();
+	status.pre_flt_fail_innov_vel_vert = _preflt_checker.hasVertVelFailed();
+	status.pre_flt_fail_innov_height = _preflt_checker.hasHeightFailed();
+	status.pre_flt_fail_mag_field_disturbed = control_status.flags.mag_field_disturbed;
+
+    return status;
 }
 
 void Ekf2::fillGpsMsgWithVehicleGpsPosData(gps_message &msg, const vehicle_gps_position_s &data)
